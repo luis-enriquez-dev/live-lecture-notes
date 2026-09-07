@@ -3,7 +3,7 @@
 Records a lecture through the browser's speech engine, transcribes it live,
 and turns the transcript into structured notes — entirely client-side.
 
-**Live demo:** https://your-url.vercel.app
+**Live demo:** https://live-lecture-notes.vercel.app/
 
 ## How the notes are generated
 
