@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lecture Notes</title>
+<meta name="description" content="Record a lecture, watch it transcribe live, and turn it into structured notes. Runs entirely in your browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EAEBE4;
+  --panel:#F5F6F0;
+  --ink:#172420;
+  --ink-soft:#5A6660;
+  --rule:#C9CBBF;
+  --accent:#2F5D50;
+  --accent-deep:#1E3E35;
+  --mark:#F2DE7E;
+  --cue:#2B4C6F;
+  --live:#B23A2E;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Instrument Sans",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+
+/* ---------- masthead ---------- */
+header{
+  border-bottom:1px solid var(--rule);
+  padding-bottom:18px;
+  margin-bottom:26px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:24px;
+  flex-wrap:wrap;
+}
+h1{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:500;
+  font-size:2.6rem;
+  letter-spacing:-.02em;
+  margin:0;
+  line-height:1;
+}
+header p{margin:.5rem 0 0;color:var(--ink-soft);max-width:52ch;font-size:.95rem}
+.badge{
+  font-size:.82rem;
+  color:var(--accent-deep);
+  border:1px solid var(--accent);
+  padding:5px 11px;
+  border-radius:2px;
+  white-space:nowrap;
+}
+
+/* ---------- layout ---------- */
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr;gap:40px}}
+
+.col-head{
+  display:flex;align-items:baseline;justify-content:space-between;
+  gap:12px;margin-bottom:12px;border-bottom:1px solid var(--rule);padding-bottom:8px;
+}
+.col-head h2{
+  font-family:"Newsreader",Georgia,serif;font-weight:500;font-size:1.3rem;margin:0;letter-spacing:-.01em;
+}
+.meta{font-size:.82rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+
+/* ---------- capture ---------- */
+.deck{display:flex;gap:8px;margin-bottom:16px}
+.deck button{
+  font:inherit;font-size:.88rem;background:none;border:1px solid var(--rule);
+  color:var(--ink-soft);padding:6px 13px;border-radius:2px;cursor:pointer;
+}
+.deck button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.deck button:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+
+.recorder{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.mic{
+  width:62px;height:62px;border-radius:50%;border:none;flex:none;
+  background:var(--accent);color:#fff;cursor:pointer;display:grid;place-items:center;
+  position:relative;transition:background .18s ease;
+}
+.mic:hover{background:var(--accent-deep)}
+.mic svg{width:24px;height:24px}
+.mic[data-on="true"]{background:var(--live)}
+.mic[data-on="true"]::after{
+  content:"";position:absolute;inset:-8px;border-radius:50%;
+  border:2px solid var(--live);opacity:.45;animation:ring 1.6s ease-out infinite;
+}
+@keyframes ring{0%{transform:scale(.85);opacity:.5}100%{transform:scale(1.18);opacity:0}}
+@media (prefers-reduced-motion:reduce){.mic[data-on="true"]::after{animation:none}}
+.rec-state{font-size:.95rem}
+.rec-state .dim{color:var(--ink-soft);font-size:.85rem;display:block;margin-top:2px}
+
+/* ---------- transcript ---------- */
+.sheet{
+  background:var(--panel);
+  border:1px solid var(--rule);
+  border-left:3px solid var(--accent);
+  padding:20px 22px;
+  min-height:290px;
+  max-height:56vh;
+  overflow-y:auto;
+  font-family:"Newsreader",Georgia,serif;
+  font-size:1.05rem;
+  line-height:1.72;
+}
+.sheet .empty{color:var(--ink-soft);font-family:"Instrument Sans",sans-serif;font-size:.92rem;line-height:1.6}
+.sheet .empty b{font-weight:500;color:var(--ink)}
+.sent{cursor:pointer;padding:1px 0;transition:background .15s ease}
+.sent.used{background:var(--mark);box-shadow:0 0 0 2px var(--mark)}
+.sent.flash{background:#fff2b0;box-shadow:0 0 0 3px #fff2b0}
+.interim{color:var(--ink-soft);font-style:italic}
+textarea{
+  width:100%;min-height:290px;background:var(--panel);border:1px solid var(--rule);
+  border-left:3px solid var(--accent);padding:20px 22px;resize:vertical;
+  font-family:"Newsreader",Georgia,serif;font-size:1.05rem;line-height:1.72;color:var(--ink);
+}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.ghost{
+  font:inherit;font-size:.86rem;background:none;border:1px solid var(--rule);color:var(--ink-soft);
+  padding:7px 13px;border-radius:2px;cursor:pointer;
+}
+.ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* ---------- controls ---------- */
+.controls{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+select{
+  font:inherit;font-size:.9rem;padding:9px 11px;border:1px solid var(--rule);
+  background:var(--panel);color:var(--ink);border-radius:2px;
+}
+.go{
+  font:inherit;font-size:.92rem;font-weight:500;background:var(--ink);color:var(--panel);
+  border:none;padding:11px 20px;border-radius:2px;cursor:pointer;
+}
+.go:hover{background:var(--accent-deep)}
+.go:disabled{background:var(--rule);color:#8B9189;cursor:not-allowed}
+
+/* ---------- notes ---------- */
+.notes{
+  background:var(--panel);border:1px solid var(--rule);padding:22px 24px;
+  min-height:290px;font-family:"Newsreader",Georgia,serif;font-size:1.02rem;line-height:1.68;
+}
+.notes .empty{color:var(--ink-soft);font-family:"Instrument Sans",sans-serif;font-size:.92rem}
+.notes h3{
+  font-family:"Instrument Sans",sans-serif;font-size:.9rem;font-weight:600;
+  margin:26px 0 9px;padding-bottom:5px;border-bottom:1px solid var(--rule);color:var(--accent-deep);
+}
+.notes h3:first-child{margin-top:0}
+.notes ul{margin:0;padding-left:20px}
+.notes li{margin-bottom:8px;cursor:pointer}
+.notes li:hover{color:var(--accent-deep)}
+.notes .term{
+  display:inline-block;border:1px solid var(--rule);background:var(--paper);
+  padding:2px 9px;margin:0 5px 6px 0;font-family:"Instrument Sans",sans-serif;font-size:.83rem;border-radius:2px;
+}
+.notes .def{margin-bottom:11px}
+.notes .def b{font-weight:600}
+.notes .cue{border-left:3px solid var(--cue);padding-left:12px;margin-bottom:10px}
+.notes .q{margin-bottom:9px}
+footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--rule);color:var(--ink-soft);font-size:.84rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Lecture Notes</h1>
+    <p>Record a lecture, watch it transcribe live, then turn it into structured notes. Everything runs in your browser.</p>
+  </div>
+  <span class="badge">No account, no API key, no upload</span>
+</header>
+
+<div class="stage">
+
+  <!-- ================= LEFT ================= -->
+  <section>
+    <div class="col-head">
+      <h2>Transcript</h2>
+      <span class="meta" id="wc">0 words</span>
+    </div>
+
+    <div class="deck">
+      <button id="tabRec" aria-pressed="true">Record</button>
+      <button id="tabType" aria-pressed="false">Type or paste</button>
+    </div>
+
+    <div id="recPane">
+      <div class="recorder">
+        <button class="mic" id="mic" data-on="false" aria-label="Start recording">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/>
+          </svg>
+        </button>
+        <div class="rec-state">
+          <span id="recLabel">Ready to record</span>
+          <span class="dim" id="recSub">Tap the mic and start speaking</span>
+        </div>
+      </div>
+      <div class="sheet" id="sheet">
+        <p class="empty"><b>Nothing recorded yet.</b><br>Start the mic, or load the sample lecture to see how the notes are built.</p>
+      </div>
+    </div>
+
+    <div id="typePane" hidden>
+      <textarea id="paste" placeholder="Paste a transcript, reading, or your own rough notes here."></textarea>
+    </div>
+
+    <div class="row">
+      <button class="ghost" id="sample">Load sample lecture</button>
+      <button class="ghost" id="clear">Clear</button>
+    </div>
+  </section>
+
+  <!-- ================= RIGHT ================= -->
+  <section>
+    <div class="col-head">
+      <h2>Notes</h2>
+      <span class="meta" id="nmeta"></span>
+    </div>
+
+    <div class="controls">
+      <select id="style">
+        <option value="detailed">Detailed notes</option>
+        <option value="key">Key points</option>
+        <option value="outline">Outline by topic</option>
+        <option value="study">Study questions</option>
+      </select>
+      <button class="go" id="make">Make notes</button>
+    </div>
+
+    <div class="notes" id="notes">
+      <p class="empty">Notes appear here. Sentences pulled into the notes get highlighted in the transcript, so you can see exactly where each point came from.</p>
+    </div>
+
+    <div class="row">
+      <button class="ghost" id="copy">Copy</button>
+      <button class="ghost" id="dl">Download .md</button>
+    </div>
+  </section>
+</div>
+
+<footer>Speech recognition uses your browser's built-in engine and needs Chrome or Edge. Note generation is plain JavaScript and works in any browser.</footer>
+</div>
+
+<script>
+/* =====================================================================
+   TEXT ENGINE — all local, no network
+   ===================================================================== */
+const STOP = new Set(("a about above after again against all am an and any are aren't as at be because been "+
+"before being below between both but by can cannot could couldn't did didn't do does doesn't doing don't down "+
+"during each few for from further had hadn't has hasn't have haven't having he he'd he'll he's her here here's "+
+"hers herself him himself his how how's i i'd i'll i'm i've if in into is isn't it it's its itself let's me more "+
+"most mustn't my myself no nor not of off on once only or other ought our ours ourselves out over own same shan't "+
+"she she'd she'll she's should shouldn't so some such than that that's the their theirs them themselves then there "+
+"there's these they they'd they'll they're they've this those through to too under until up very was wasn't we "+
+"we'd we'll we're we've were weren't what what's when when's where where's which while who who's whom why why's "+
+"with won't would wouldn't you you'd you'll you're you've your yours yourself yourselves okay ok right now just "+
+"like really actually basically going get got kind sort thing things lot lots said say says one two also well "+
+"want need see look going gonna yeah um uh alright today").split(" "));
+
+const CUE = /\b(on the (exam|test|quiz|midterm|final)|will be (on|tested)|make sure|be sure|remember|don't forget|important|importantly|key (point|idea|takeaway)|note that|due (on|by|next|this)|homework|assignment|quiz|deadline|pay attention|this matters|common mistake|watch out|keep in mind)\b/i;
+
+function splitSentences(text){
+  return text
+    .replace(/\s+/g," ")
+    .replace(/([.!?])\s+/g,"$1\u0001")
+    .split("\u0001")
+    .map(s=>s.trim())
+    .filter(s=>s.split(" ").length>3);
+}
+function words(s){
+  return s.toLowerCase().replace(/[^a-z0-9\s'-]/g," ").split(/\s+/)
+    .filter(w=>w.length>2 && !STOP.has(w));
+}
+function tally(list){const m=new Map();for(const w of list)m.set(w,(m.get(w)||0)+1);return m;}
+
+/* --- TextRank over sentence-similarity graph --- */
+function rank(sents){
+  const bags=sents.map(s=>new Set(words(s)));
+  const n=sents.length;
+  const sim=Array.from({length:n},()=>new Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+    let shared=0;
+    for(const w of bags[i]) if(bags[j].has(w)) shared++;
+    const denom=Math.log(bags[i].size+1)+Math.log(bags[j].size+1);
+    const v=denom>0?shared/denom:0;
+    sim[i][j]=v;sim[j][i]=v;
+  }
+  let score=new Array(n).fill(1);
+  for(let it=0;it<24;it++){
+    const next=new Array(n).fill(.15);
+    for(let i=0;i<n;i++){
+      let out=0; for(let j=0;j<n;j++) out+=sim[i][j];
+      if(out===0) continue;
+      for(let j=0;j<n;j++) if(sim[i][j]>0) next[j]+=.85*score[i]*sim[i][j]/out;
+    }
+    score=next;
+  }
+  // weight by content density, cue words, and a mild opening boost
+  return score.map((v,i)=>{
+    const w=words(sents[i]).length;
+    let s=v*(1+Math.min(w,22)/40);
+    if(CUE.test(sents[i])) s*=1.45;
+    if(i<2) s*=1.15;
+    if(sents[i].split(" ").length>45) s*=.85;
+    return s;
+  });
+}
+
+/* --- key terms: unigrams + repeated bigrams --- */
+function keyTerms(sents,limit){
+  const all=sents.flatMap(words);
+  const uni=tally(all);
+  const bi=new Map();
+  for(const s of sents){
+    const w=words(s);
+    for(let i=0;i<w.length-1;i++){const k=w[i]+" "+w[i+1];bi.set(k,(bi.get(k)||0)+1);}
+  }
+  const scored=[];
+  for(const [k,c] of bi) if(c>=2) scored.push([k,c*2.4]);
+  const inBi=new Set(scored.flatMap(([k])=>k.split(" ")));
+  for(const [k,c] of uni) if(c>=2 && !inBi.has(k)) scored.push([k,c]);
+  return scored.sort((a,b)=>b[1]-a[1]).slice(0,limit).map(([k])=>k);
+}
+
+/* --- definitions --- */
+const DEF_PATTERNS=[
+  /^(?:so\s+|and\s+|now\s+)?(?:a|an|the)?\s*([a-z][a-z0-9\s-]{2,40}?)\s+(?:is|are)\s+(?:defined as|called|known as)\s+(.{8,190})$/i,
+  /^(?:so\s+|and\s+|now\s+)?(?:a|an|the)?\s*([a-z][a-z0-9\s-]{2,40}?)\s+refers to\s+(.{8,190})$/i,
+  /^(?:so\s+|and\s+|now\s+)?(?:a|an|the)?\s*([a-z][a-z0-9\s-]{2,40}?)\s+means\s+(.{8,190})$/i,
+  /^(?:so\s+|and\s+|now\s+)?(?:a|an|the)?\s*([a-z][a-z0-9\s-]{2,40}?)\s+(?:is|are)\s+(?:a|an|the)\s+(.{8,190})$/i,
+];
+function definitions(sents){
+  const out=[],seen=new Set();
+  const corpus=sents.join(" ").toLowerCase();
+  const BAD=new Set("fewer more less least most each every all some any other another same such it this that these those they there we you i".split(" "));
+  const recurs=t=>{
+    const parts=t.toLowerCase().split(" ");
+    if(BAD.has(parts[0])) return false;
+    return (corpus.split(parts[parts.length-1]).length-1)>=2;
+  };
+  for(const s of sents){
+    const body=s.replace(/[.!?]+$/,"");
+    for(const re of DEF_PATTERNS){
+      const m=body.match(re);
+      if(m){
+        const term=m[1].trim().replace(/\s+/g," ");
+        if(term.split(" ").length>5) break;
+        const k=term.toLowerCase();
+        if(seen.has(k)||!recurs(term)) break;
+        seen.add(k);
+        out.push({term,body:m[2].trim(),source:s});
+        break;
+      }
+    }
+  }
+  return out.slice(0,8);
+}
+
+/* --- topic segmentation by lexical shift --- */
+function segment(sents,target){
+  const n=sents.length;
+  const parts=Math.max(1,Math.min(target,Math.round(n/5)));
+  const size=Math.ceil(n/parts);
+  const segs=[];
+  for(let i=0;i<n;i+=size) segs.push({idx:[...Array(Math.min(size,n-i)).keys()].map(k=>k+i)});
+  for(const seg of segs){
+    const t=keyTerms(seg.idx.map(i=>sents[i]),2);
+    if(!t.length) seg.title="Discussion";
+    else if(t[0].includes(" ")) seg.title=cap(t[0]);
+    else seg.title=t.slice(0,2).map(cap).join(" and ");
+  }
+  return segs;
+}
+function cap(s){return s.replace(/\b[a-z]/g,c=>c.toUpperCase());}
+function clean(s){
+  return s.replace(/^(?:so|and|but|now|okay|ok|alright|um|uh|well|yeah)[,\s]+/i,"")
+          .replace(/^\w/,c=>c.toUpperCase());
+}
+
+/* =====================================================================
+   NOTE BUILDERS
+   ===================================================================== */
+function build(text,style){
+  const sents=splitSentences(text);
+  if(sents.length<3) return {html:'<p class="empty">Not enough text yet. Record or paste a few more sentences, then try again.</p>',md:"",used:[]};
+
+  const scores=rank(sents);
+  const order=scores.map((v,i)=>[i,v]).sort((a,b)=>b[1]-a[1]).map(([i])=>i);
+  const defs=definitions(sents);
+  const cues=sents.map((s,i)=>[s,i]).filter(([s])=>CUE.test(s)).slice(0,5);
+  const terms=keyTerms(sents,10);
+  const used=new Set();
+  let html="",md="";
+
+  const take=n=>order.slice(0,Math.min(n,sents.length)).sort((a,b)=>a-b);
+
+  if(style==="key"){
+    const picks=take(Math.max(4,Math.round(sents.length*0.18)));
+    html+="<h3>Key points</h3><ul>";
+    md+="## Key points\n\n";
+    for(const i of picks){used.add(i);html+=`<li data-i="${i}">${clean(sents[i])}</li>`;md+=`- ${clean(sents[i])}\n`;}
+    html+="</ul>";
+  }
+
+  if(style==="detailed"){
+    const segs=segment(sents,4);
+    const budget=Math.max(6,Math.round(sents.length*0.28));
+    const chosen=new Set(take(budget));
+    for(const seg of segs){
+      const picks=seg.idx.filter(i=>chosen.has(i));
+      if(!picks.length) continue;
+      html+=`<h3>${seg.title}</h3><ul>`;
+      md+=`## ${seg.title}\n\n`;
+      for(const i of picks){used.add(i);html+=`<li data-i="${i}">${clean(sents[i])}</li>`;md+=`- ${clean(sents[i])}\n`;}
+      html+="</ul>";md+="\n";
+    }
+    if(defs.length){
+      html+="<h3>Definitions</h3>";md+="## Definitions\n\n";
+      for(const d of defs){
+        const i=sents.indexOf(d.source);if(i>-1)used.add(i);
+        html+=`<div class="def" data-i="${i}"><b>${cap(d.term)}</b> — ${d.body}</div>`;
+        md+=`**${cap(d.term)}** — ${d.body}\n\n`;
+      }
+    }
+    if(cues.length){
+      html+="<h3>Flagged by the lecturer</h3>";md+="## Flagged by the lecturer\n\n";
+      for(const [s,i] of cues){used.add(i);html+=`<div class="cue" data-i="${i}">${clean(s)}</div>`;md+=`> ${clean(s)}\n\n`;}
+    }
+    if(terms.length){
+      html+="<h3>Key terms</h3><div>"+terms.map(t=>`<span class="term">${cap(t)}</span>`).join("")+"</div>";
+      md+="## Key terms\n\n"+terms.map(cap).join(", ")+"\n";
+    }
+  }
+
+  if(style==="outline"){
+    const segs=segment(sents,5);
+    const chosen=new Set(take(Math.max(5,Math.round(sents.length*0.22))));
+    segs.forEach(seg=>{
+      const picks=seg.idx.filter(i=>chosen.has(i));
+      if(!picks.length) return;
+      html+=`<h3>${seg.title}</h3><ul>`;md+=`## ${seg.title}\n\n`;
+      for(const i of picks){used.add(i);html+=`<li data-i="${i}">${clean(sents[i])}</li>`;md+=`- ${clean(sents[i])}\n`;}
+      html+="</ul>";md+="\n";
+    });
+  }
+
+  if(style==="study"){
+    const qs=[];
+    for(const d of defs){
+      const i=sents.indexOf(d.source);if(i>-1)used.add(i);
+      const art=/^[A-Z]/.test(d.term)?"":(/^[aeiou]/i.test(d.term)?"an ":"a ");
+      qs.push([`What is ${art}${d.term}?`,d.body,i]);
+    }
+    for(const [s,i] of cues){used.add(i);qs.push(["Why does this matter?",clean(s),i]);}
+    for(const t of terms.slice(0,6)){
+      if(qs.length>=10) break;
+      const i=sents.findIndex(x=>x.toLowerCase().includes(t));
+      if(i>-1){used.add(i);qs.push([`Explain the role of ${t}.`,clean(sents[i]),i]);}
+    }
+    html+="<h3>Recall questions</h3>";md+="## Recall questions\n\n";
+    qs.slice(0,10).forEach((q,n)=>{
+      html+=`<div class="q" data-i="${q[2]}"><b>${n+1}. ${q[0]}</b><br><span style="color:var(--ink-soft)">${q[1]}</span></div>`;
+      md+=`${n+1}. ${q[0]}\n   ${q[1]}\n\n`;
+    });
+  }
+
+  return {html,md:md.trim(),used:[...used]};
+}
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+let transcript="", interim="", recording=false, rec=null, mode="rec";
+
+function currentText(){return mode==="rec"?transcript:$("paste").value;}
+
+function renderTranscript(highlight=[]){
+  const el=$("sheet");
+  if(!transcript.trim() && !interim){
+    el.innerHTML='<p class="empty"><b>Nothing recorded yet.</b><br>Start the mic, or load the sample lecture to see how the notes are built.</p>';
+    return;
+  }
+  const sents=splitSentences(transcript);
+  const set=new Set(highlight);
+  el.innerHTML=sents.map((s,i)=>`<span class="sent${set.has(i)?" used":""}" data-i="${i}">${s}</span> `).join("")
+    + (interim?`<span class="interim">${interim}</span>`:"");
+  el.scrollTop=el.scrollHeight;
+}
+function countWords(){
+  const n=currentText().trim()?currentText().trim().split(/\s+/).length:0;
+  $("wc").textContent=n+(n===1?" word":" words");
+}
+
+/* --- tabs --- */
+$("tabRec").onclick=()=>switchMode("rec");
+$("tabType").onclick=()=>switchMode("type");
+function switchMode(m){
+  mode=m;
+  $("tabRec").setAttribute("aria-pressed",m==="rec");
+  $("tabType").setAttribute("aria-pressed",m==="type");
+  $("recPane").hidden=m!=="rec";
+  $("typePane").hidden=m!=="type";
+  countWords();
+}
+
+/* --- speech --- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR){
+  $("recSub").textContent="This browser has no speech engine. Use Type or paste.";
+  $("mic").disabled=true;$("mic").style.background="var(--rule)";
+}
+$("mic").onclick=()=>{
+  if(!SR) return;
+  recording?stop():start();
+};
+function start(){
+  rec=new SR();
+  rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
+  rec.onresult=e=>{
+    interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) transcript+=t.trim()+" ";
+      else interim+=t;
+    }
+    renderTranscript();countWords();
+  };
+  rec.onerror=e=>{
+    if(e.error==="not-allowed"){
+      $("recLabel").textContent="Microphone blocked";
+      $("recSub").textContent="Allow mic access in your browser, then try again.";
+      stop();
+    }
+  };
+  rec.onend=()=>{ if(recording) rec.start(); };
+  rec.start();
+  recording=true;
+  $("mic").dataset.on="true";
+  $("mic").setAttribute("aria-label","Stop recording");
+  $("recLabel").textContent="Recording";
+  $("recSub").textContent="Speak normally. Text appears as you go.";
+}
+function stop(){
+  recording=false;
+  if(rec){rec.onend=null;rec.stop();}
+  interim="";
+  $("mic").dataset.on="false";
+  $("mic").setAttribute("aria-label","Start recording");
+  $("recLabel").textContent="Stopped";
+  $("recSub").textContent="Pick a style and make your notes.";
+  renderTranscript();
+}
+
+/* --- actions --- */
+$("make").onclick=()=>{
+  const text=currentText();
+  const {html,md,used}=build(text,$("style").value);
+  $("notes").innerHTML=html;
+  $("notes").dataset.md=md;
+  $("nmeta").textContent=md?used.length+" sentences used":"";
+  if(mode==="rec") renderTranscript(used);
+  $("notes").querySelectorAll("[data-i]").forEach(el=>{
+    el.onclick=()=>{
+      const t=$("sheet").querySelector(`.sent[data-i="${el.dataset.i}"]`);
+      if(!t) return;
+      t.scrollIntoView({block:"center",behavior:"smooth"});
+      t.classList.add("flash");setTimeout(()=>t.classList.remove("flash"),900);
+    };
+  });
+};
+$("copy").onclick=async()=>{
+  const md=$("notes").dataset.md;
+  if(!md) return;
+  await navigator.clipboard.writeText(md);
+  $("copy").textContent="Copied";setTimeout(()=>$("copy").textContent="Copy",1400);
+};
+$("dl").onclick=()=>{
+  const md=$("notes").dataset.md;
+  if(!md) return;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([md],{type:"text/markdown"}));
+  a.download="lecture-notes-"+new Date().toISOString().slice(0,10)+".md";
+  a.click();URL.revokeObjectURL(a.href);
+};
+$("clear").onclick=()=>{
+  transcript="";interim="";$("paste").value="";
+  renderTranscript();countWords();
+  $("notes").innerHTML='<p class="empty">Notes appear here. Sentences pulled into the notes get highlighted in the transcript, so you can see exactly where each point came from.</p>';
+  $("notes").dataset.md="";$("nmeta").textContent="";
+};
+$("paste").oninput=countWords;
+
+const SAMPLE="Today we are going to work through combinational logic and how it differs from sequential logic. A combinational circuit is a circuit whose output depends only on the current inputs. There is no memory involved, so the same input always produces the same output. Sequential logic is different because the output depends on both the current inputs and the stored state. That stored state is what we call the state of the machine, and it is held in flip flops. A flip flop is a one bit memory element that changes state on a clock edge. This distinction will be on the exam, so make sure you can explain it in your own words. Let us start with the multiplexer. A multiplexer is a circuit that selects one of several input lines and forwards it to a single output line. The select lines determine which input gets through. If you have four data inputs you need two select lines, because two bits can encode four choices. In general n select lines can address two to the n inputs. The decoder does the opposite job. A decoder takes an encoded input and activates exactly one of its output lines. Decoders are used heavily in memory addressing, where the address bits select a single row. Now think about how we actually build these things from gates. Any combinational function can be written in sum of products form. Sum of products means you write the function as an OR of AND terms. Each AND term corresponds to a row of the truth table where the output is one. Once you have that expression you can simplify it with a Karnaugh map. A Karnaugh map is a grid arrangement of the truth table that makes adjacent groupings visible. Grouping adjacent ones lets you eliminate variables and reduce gate count. Remember that groups must be powers of two in size, so one, two, four, or eight cells. Fewer gates means less propagation delay and lower power. Propagation delay is the time it takes for a change at the input to appear at the output. The critical path is the longest delay path through the circuit and it determines your maximum clock frequency. For homework, work problems four through nine and pay attention to the timing analysis in problem seven. That is the kind of question that shows up on the midterm.";
+$("sample").onclick=()=>{
+  switchMode("rec");
+  transcript=SAMPLE;interim="";
+  renderTranscript();countWords();
+  $("recLabel").textContent="Sample loaded";
+  $("recSub").textContent="Pick a style and make your notes.";
+};
+
+renderTranscript();countWords();
+</script>
+</body>
+</html>
